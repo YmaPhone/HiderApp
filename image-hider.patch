@@ -416,11 +416,10 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..d1f48c4f72d910fb15d1dcd07cf43559b2b91da4
 --- /dev/null
 +++ b/shared/src/iosMain/kotlin/com/metrolist/shared/utils/ImageHiding.ios.kt
-@@ -0,1 +1,7 @@
+@@ -0,0 +1,6 @@
 +package com.metrolist.shared.utils
 +
 +import androidx.compose.runtime.Composable
 +
 +@Composable
 +actual fun rememberImageHiderEnabled(): Boolean = false
- 
