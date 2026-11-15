@@ -119,13 +119,15 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..d1f48c4f72d910fb15d1dcd07cf43559b2b91da4
 --- /dev/null
 +++ b/shared/src/androidMain/kotlin/com/metrolist/shared/utils/ImageHiding.android.kt
-@@ -0,0 +1,6 @@
+@@ -0,0 +1,8 @@
 +package com.metrolist.shared.utils
 +
 +import androidx.compose.runtime.Composable
 +
 +@Composable
 +actual fun rememberImageHiderEnabled(): Boolean = false
++
++actual fun setImageHiderEnabled(enabled: Boolean) = Unit
 diff --git a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/components/ArtworkBackgroundShader.kt b/shared/src/commonMain/kotlin/com/metrolist/shared/ui/components/ArtworkBackgroundShader.kt
 index b838a9feaa8f76b1f614f0b50eaf4a58eacd56dc..5dd95707fbb3ee3820d4b30bf31518407341a0c7 100644
 --- a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/components/ArtworkBackgroundShader.kt
@@ -323,7 +325,7 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..a375f0b0b85f3bf9688b82876ca5ba3a162138b6
 --- /dev/null
 +++ b/shared/src/commonMain/kotlin/com/metrolist/shared/utils/ImageHiding.kt
-@@ -0,0 +1,7 @@
+@@ -0,0 +1,9 @@
 +package com.metrolist.shared.utils
 +
 +import androidx.compose.runtime.Composable
@@ -331,6 +333,8 @@ index 0000000000000000000000000000000000000000..a375f0b0b85f3bf9688b82876ca5ba3a
 +/** Returns whether desktop artwork should currently be hidden by the external switch. */
 +@Composable
 +expect fun rememberImageHiderEnabled(): Boolean
++
++expect fun setImageHiderEnabled(enabled: Boolean)
 diff --git a/shared/src/desktopMain/kotlin/com/metrolist/shared/ui/components/images/AsyncImage.kt b/shared/src/desktopMain/kotlin/com/metrolist/shared/ui/components/images/AsyncImage.kt
 index 10f22eecb5404f46b9c881a82270d2e614eb5b53..e6adc4cf8c0b165e0acf51e041e01a19669758e1 100644
 --- a/shared/src/desktopMain/kotlin/com/metrolist/shared/ui/components/images/AsyncImage.kt
@@ -388,7 +392,7 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..8a8338577695d83c6281365caf7733ce37405cce
 --- /dev/null
 +++ b/shared/src/desktopMain/kotlin/com/metrolist/shared/utils/ImageHiding.desktop.kt
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,31 @@
 +package com.metrolist.shared.utils
 +
 +import androidx.compose.runtime.Composable
@@ -410,15 +414,63 @@ index 0000000000000000000000000000000000000000..8a8338577695d83c6281365caf7733ce
 +        delay(400)
 +    }
 +}.value
++
++actual fun setImageHiderEnabled(enabled: Boolean) {
++    val flag = imageHiderFlagFile()
++    if (enabled) {
++        flag.parentFile?.mkdirs()
++        flag.writeText("hide", Charsets.UTF_8)
++    } else {
++        flag.delete()
++    }
++}
 diff --git a/shared/src/iosMain/kotlin/com/metrolist/shared/utils/ImageHiding.ios.kt b/shared/src/iosMain/kotlin/com/metrolist/shared/utils/ImageHiding.ios.kt
 new file mode 100644
 index 0000000000000000000000000000000000000000..d1f48c4f72d910fb15d1dcd07cf43559b2b91da4
 --- /dev/null
 +++ b/shared/src/iosMain/kotlin/com/metrolist/shared/utils/ImageHiding.ios.kt
-@@ -0,0 +1,6 @@
+@@ -0,0 +1,8 @@
 +package com.metrolist.shared.utils
 +
 +import androidx.compose.runtime.Composable
 +
 +@Composable
 +actual fun rememberImageHiderEnabled(): Boolean = false
++
++actual fun setImageHiderEnabled(enabled: Boolean) = Unit
+
+diff --git a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/settings/AppearanceSettingsRegistration.kt b/shared/src/commonMain/kotlin/com/metrolist/shared/ui/settings/AppearanceSettingsRegistration.kt
+--- a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/settings/AppearanceSettingsRegistration.kt
++++ b/shared/src/commonMain/kotlin/com/metrolist/shared/ui/settings/AppearanceSettingsRegistration.kt
+@@ -35,6 +35,8 @@
+ import com.metrolist.shared.settings.normalizeDefaultOpenTab
+ import com.metrolist.shared.settings.updateDefaultOpenTab
+ import com.metrolist.shared.ui.icons.MetrolistIcons
++import com.metrolist.shared.utils.rememberImageHiderEnabled
++import com.metrolist.shared.utils.setImageHiderEnabled
+ import org.jetbrains.compose.resources.stringResource
+ import kotlin.math.roundToInt
+ 
+@@ -43,5 +45,6 @@
+ @Composable
+ internal fun SettingsUiRegistryBuilder.registerAppearanceSettings(host: SharedSettingsHost) {
+     val settings = Settings.shared
++    val imagesHidden = rememberImageHiderEnabled()
+     val themeChoices =
+         listOf(
+@@ -82,8 +85,18 @@
+         icon = MetrolistIcons.Outlined.Palette,
+         tone = SettingsTone.ORANGE,
+         subtitle = stringResource(Res.string.settings_appearance_overview),
+     ) {
++        if (host.platform == SettingsPlatform.DESKTOP) {
++            group("visibility", "Visibility") {
++                switch(
++                    id = "hideAllImages",
++                    title = "Hide all images",
++                    description = "Hide album covers, artist photos, and other artwork throughout Metrolist.",
++                    checked = imagesHidden,
++                ) { setImageHiderEnabled(it) }
++            }
++        }
+         group("theme", stringResource(Res.string.appearance_theme)) {

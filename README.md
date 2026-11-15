@@ -1,6 +1,6 @@
 # Metrolist Image Hider for Windows
 
-A Windows x64 installer that bundles a patched Metrolist Desktop 14.0.0 with a separate Hebrew-language switch for hiding and showing artwork and thumbnails.
+A Windows x64 installer that bundles patched Metrolist Desktop 14.0.0 (installer build 14.0.1) with a built-in image-visibility setting and a separate Hebrew-language quick switch.
 
 ## Included
 

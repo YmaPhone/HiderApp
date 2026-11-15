@@ -108,17 +108,17 @@ jobs:
         run: |
           $compiler = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $compiler)) { throw "Inno Setup compiler not found at $compiler" }
-          & $compiler "/DAppVersion=14.0.0" "installer\MetrolistImageHider.iss"
+          & $compiler "/DAppVersion=14.0.1" "installer\MetrolistImageHider.iss"
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
-          $installer = "upstream\dist\Metrolist-Image-Hider-Setup-14.0.0.exe"
+          $installer = "upstream\dist\Metrolist-Image-Hider-Setup-14.0.1.exe"
           if (-not (Test-Path $installer) -or (Get-Item $installer).Length -lt 1000000) { throw "Installer output is missing or unexpectedly small" }
           $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  Metrolist-Image-Hider-Setup-14.0.0.exe" | Set-Content "$installer.sha256" -Encoding ascii
+          "$hash  Metrolist-Image-Hider-Setup-14.0.1.exe" | Set-Content "$installer.sha256" -Encoding ascii
 
       - name: Test install and uninstall
         shell: pwsh
         run: |
-          $installer = (Resolve-Path "upstream\dist\Metrolist-Image-Hider-Setup-14.0.0.exe").Path
+          $installer = (Resolve-Path "upstream\dist\Metrolist-Image-Hider-Setup-14.0.1.exe").Path
           $target = Join-Path $env:RUNNER_TEMP "MetrolistImageHiderTest"
           $process = Start-Process -FilePath $installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$target") -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Silent installer returned $($process.ExitCode)" }
@@ -134,23 +134,23 @@ jobs:
         with:
           name: Metrolist-Image-Hider-Setup-Windows-x64
           path: |
-            upstream/dist/Metrolist-Image-Hider-Setup-14.0.0.exe
-            upstream/dist/Metrolist-Image-Hider-Setup-14.0.0.exe.sha256
+            upstream/dist/Metrolist-Image-Hider-Setup-14.0.1.exe
+            upstream/dist/Metrolist-Image-Hider-Setup-14.0.1.exe.sha256
           if-no-files-found: error
           retention-days: 30
 
       - name: Publish installer release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: image-hider-v14.0.0
-          name: Metrolist Image Hider for Windows v14.0.0
+          tag_name: image-hider-v14.0.1
+          name: Metrolist Image Hider for Windows v14.0.1
           body: |
-            Windows x64 installer containing the patched Metrolist Desktop 14.0.0 and the standalone Hebrew image-hider switch.
+            Windows x64 installer containing the patched Metrolist Desktop 14.0.0 and the in-app Visibility switch and the standalone Hebrew image-hider switch.
 
             The installer was compiled on a Windows runner and tested with a silent install/uninstall check.
           files: |
-            upstream/dist/Metrolist-Image-Hider-Setup-14.0.0.exe
-            upstream/dist/Metrolist-Image-Hider-Setup-14.0.0.exe.sha256
+            upstream/dist/Metrolist-Image-Hider-Setup-14.0.1.exe
+            upstream/dist/Metrolist-Image-Hider-Setup-14.0.1.exe.sha256
           fail_on_unmatched_files: true
           overwrite_files: true
           make_latest: true
