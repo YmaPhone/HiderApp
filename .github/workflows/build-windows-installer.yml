@@ -1,0 +1,157 @@
+name: Build Windows Installer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Metrolist Image Hider (Windows x64)
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - name: Check out HiderApp
+        uses: actions/checkout@v4
+
+      - name: Check out upstream Metrolist v14.0.0 (including submodules)
+        uses: actions/checkout@v4
+        with:
+          repository: MetrolistGroup/Metrolist
+          ref: v14.0.0
+          path: upstream
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Apply image-hiding patch
+        shell: pwsh
+        run: |
+          git -C upstream apply "$env:GITHUB_WORKSPACE\image-hider.patch"
+          if ($LASTEXITCODE -ne 0) { throw "Could not apply image-hider.patch" }
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Set up .NET 10 for the Metrolist login helper
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: upstream/metro-wv2-helper/global.json
+
+      - name: Set up Python for icon and controller builds
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Generate Windows application icons
+        shell: pwsh
+        working-directory: upstream
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir Pillow==13.0.0
+          python scripts/gen_icons.py
+          if ($LASTEXITCODE -ne 0) { throw "Icon generation failed" }
+
+      - name: Build the Windows login helper
+        shell: pwsh
+        working-directory: upstream/metro-wv2-helper
+        run: |
+          $output = "../desktopApp/src/desktopMain/resources/windows"
+          dotnet publish "metro-wv2-helper.csproj" --configuration Release --runtime win-x64 --self-contained true --output $output -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -p:DebugSymbols=false -p:PublishReadyToRun=true
+          if ($LASTEXITCODE -ne 0) { throw "Windows login helper build failed" }
+          if (-not (Test-Path (Join-Path $output "metro-wv2-helper.exe"))) { throw "Windows login helper was not produced" }
+
+      - name: Build patched Metrolist desktop package
+        shell: bash
+        working-directory: upstream
+        env:
+          LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+          LASTFM_SECRET: ${{ secrets.LASTFM_SECRET }}
+          LYPRIO_BASE_URL: ${{ secrets.LYPRIO_BASE_URL }}
+          LYPRIO_HMAC_KEY: ${{ secrets.LYPRIO_HMAC_KEY }}
+        run: |
+          set -euo pipefail
+          ./gradlew :desktopApp:assembleWindowsRelease \
+            -Pmetrolist.verifyPackaging=false \
+            -Pmetrolist.desktop.arch=x86_64 \
+            --no-daemon \
+            --no-configuration-cache
+          test -s dist/Metrolist-Desktop-Windows.zip
+
+      - name: Build standalone image-hider application
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir pyinstaller
+          python -m PyInstaller --noconfirm --clean --onefile --windowed --name "Metrolist Image Hider" controller/MetrolistImageHider.pyw
+          $controller = "dist\Metrolist Image Hider.exe"
+          if (-not (Test-Path $controller)) { throw "The image-hider executable was not produced" }
+
+      - name: Stage application files
+        shell: pwsh
+        run: |
+          $stage = "stage\Metrolist"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Expand-Archive -LiteralPath "upstream\dist\Metrolist-Desktop-Windows.zip" -DestinationPath $stage -Force
+          Copy-Item "dist\Metrolist Image Hider.exe" "$stage\Metrolist Image Hider.exe" -Force
+          if (-not (Test-Path "$stage\Metrolist.exe")) { throw "Metrolist.exe is missing from the staged package" }
+          if (-not (Test-Path "$stage\Metrolist Image Hider.exe")) { throw "The image-hider executable is missing from the staged package" }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Compile installer
+        shell: pwsh
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}"\Inno Setup 6\ISCC.exe
+          if (-not (Test-Path $compiler)) { throw "Inno Setup compiler not found at $compiler" }
+          & $compiler "/DAppVersion=14.0.0" "installer\MetrolistImageHider.iss"
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
+          $installer = "upstream\dist\Metrolist-Image-Hider-Setup-14.0.0.exe"
+          if (-not (Test-Path $installer) -or (Get-Item $installer).Length -lt 1000000) { throw "Installer output is missing or unexpectedly small" }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  Metrolist-Image-Hider-Setup-14.0.0.exe" | Set-Content "$installer.sha256" -Encoding ascii
+
+      - name: Test install and uninstall
+        shell: pwsh
+        run: |
+          $installer = (Resolve-Path "upstream\dist\Metrolist-Image-Hider-Setup-14.0.0.exe").Path
+          $target = Join-Path $env:RUNNER_TEMP "MetrolistImageHiderTest"
+          $process = Start-Process -FilePath $installer -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=$target") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Silent installer returned $($process.ExitCode)" }
+          if (-not (Test-Path (Join-Path $target "Metrolist.exe"))) { throw "Installed Metrolist.exe is missing" }
+          if (-not (Test-Path (Join-Path $target "Metrolist Image Hider.exe"))) { throw "Installed image-hider app is missing" }
+          $uninstaller = Join-Path $target "unins000.exe"
+          if (-not (Test-Path $uninstaller)) { throw "Uninstaller was not created" }
+          $remove = Start-Process -FilePath $uninstaller -ArgumentList @("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") -Wait -PassThru
+          if ($remove.ExitCode -ne 0) { throw "Uninstaller returned $($remove.ExitCode)" }
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Metrolist-Image-Hider-Setup-Windows-x64
+          path: |
+            upstream/dist/Metrolist-Image-Hider-Setup-14.0.0.exe
+            upstream/dist/Metrolist-Image-Hider-Setup-14.0.0.exe.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish installer release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: image-hider-v14.0.0
+          name: Metrolist Image Hider for Windows v14.0.0
+          body: |
+            Windows x64 installer containing the patched Metrolist Desktop 14.0.0 and the standalone Hebrew image-hider switch.
+
+            The installer was compiled on a Windows runner and tested with a silent install/uninstall check.
+          files: |
+            upstream/dist/Metrolist-Image-Hider-Setup-14.0.0.exe
+            upstream/dist/Metrolist-Image-Hider-Setup-14.0.0.exe.sha256
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          make_latest: true
