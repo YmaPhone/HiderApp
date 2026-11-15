@@ -180,7 +180,8 @@ diff --git a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/components/Liq
 index b3e68553283d11a66fe68d055e8ab3e1db846af8..973418b22bec1dce3738fbf2087cae3f149f0c7a 100644
 --- a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/components/LiquidBackground.kt
 +++ b/shared/src/commonMain/kotlin/com/metrolist/shared/ui/components/LiquidBackground.kt
-@@ -28,6 +28,7 @@ import coil3.compose.rememberAsyncImagePainter
+@@ -28,6 +28,8 @@ import coil3.compose.rememberAsyncImagePainter
++import androidx.compose.material3.MaterialTheme
  import coil3.request.ImageRequest
  import coil3.size.Precision
  import com.metrolist.shared.ui.player.LocalPlayerTrackArtwork
