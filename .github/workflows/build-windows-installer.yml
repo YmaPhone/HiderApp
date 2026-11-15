@@ -29,7 +29,7 @@ jobs:
       - name: Apply image-hiding patch
         shell: pwsh
         run: |
-          git -C upstream apply "$env:GITHUB_WORKSPACE\image-hider.patch"
+          git -C upstream apply --ignore-whitespace --recount "$env:GITHUB_WORKSPACE\image-hider.patch"
           if ($LASTEXITCODE -ne 0) { throw "Could not apply image-hider.patch" }
 
       - name: Set up Java 25
