@@ -211,20 +211,18 @@ index 54c9b4480c013db9fba850bcd45fe2bba94d04af..af1925a6af45fcf9499fe3164dcd3f9e
  import com.metrolist.shared.ui.utils.toImageBitmap
  import kotlinx.coroutines.delay
  
-@@ -96,10 +97,11 @@ fun LyricsContrastScrim(
-     exit = fadeOut(tween(500)),
- ) {
-     val textColor = resolveLyricsTextColor(Color.White)
-+    val imagesHidden = rememberImageHiderEnabled()
-     val context = LocalPlatformContext.current
--    val prepared = LocalPlayerTrackArtwork.current?.takeIf { it.url == artworkUrl }?.bitmap
-+    val prepared = LocalPlayerTrackArtwork.current?.takeIf { !imagesHidden && it.url == artworkUrl }?.bitmap
-     val bitmap =
--        if (artworkUrl != null && prepared == null) {
-+        if (!imagesHidden && artworkUrl != null && prepared == null) {
-             val request = remember(context, artworkUrl) { artworkBackdropRequest(context, artworkUrl) }
-             val painter = key(artworkUrl) { rememberAsyncImagePainter(request) }
-             val state by painter.state.collectAsState()
+@@ -98,8 +99,9 @@
+         val textColor = resolveLyricsTextColor(Color.White)
++        val imagesHidden = rememberImageHiderEnabled()
+         val context = LocalPlatformContext.current
+-        val prepared = LocalPlayerTrackArtwork.current?.takeIf { it.url == artworkUrl }?.bitmap
++        val prepared = LocalPlayerTrackArtwork.current?.takeIf { !imagesHidden && it.url == artworkUrl }?.bitmap
+         val bitmap =
+-            if (artworkUrl != null && prepared == null) {
++            if (!imagesHidden && artworkUrl != null && prepared == null) {
+                 val request = remember(context, artworkUrl) { artworkBackdropRequest(context, artworkUrl) }
+                 val painter = key(artworkUrl) { rememberAsyncImagePainter(request) }
+                 val state by painter.state.collectAsState()
 diff --git a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/player/PlayerArtworkBackground.kt b/shared/src/commonMain/kotlin/com/metrolist/shared/ui/player/PlayerArtworkBackground.kt
 index 3b40df67e2e80e9a5b50a67467db8bda3179ed12..986f65d220890e8cb6d7a8ca673c00f09d2f1603 100644
 --- a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/player/PlayerArtworkBackground.kt
