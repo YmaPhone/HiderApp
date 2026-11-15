@@ -76,7 +76,6 @@ jobs:
         run: |
           set -euo pipefail
           ./gradlew :desktopApp:assembleWindowsRelease \
-            -Pmetrolist.verifyPackaging=false \
             -Pmetrolist.desktop.arch=x86_64 \
             --no-daemon \
             --no-configuration-cache
