@@ -15,14 +15,14 @@ OutputBaseFilename=Metrolist-Image-Hider-Setup-{#AppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
-PrivilegesRequired=admin
+PrivilegesRequired=lowest
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 UninstallDisplayIcon={app}\Metrolist.exe
 
 [Languages]
-Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "hebrew"; MessagesFile: "compiler:Languages\Hebrew.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create desktop shortcuts"; GroupDescription: "Additional shortcuts:"
