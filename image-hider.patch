@@ -26,9 +26,9 @@ index 215229f7f1fccf037b966b5248f4074a4cad16c4..39dceea089a7891ac7227f07b4cd64d0
  import java.util.concurrent.ConcurrentHashMap
  import coil3.compose.AsyncImage as CoilAsyncImage
 @@ -58,6 +61,21 @@ import org.jetbrains.skia.Image as SkiaImage
-
+ 
  private const val THEME_SAMPLE_WIDTH = 128
-
+ 
 +private fun hideImagesFlagFile(): File {
 +    val appData = System.getenv("APPDATA")
 +    val root = if (!appData.isNullOrBlank()) File(appData, "Metrolist") else File(System.getProperty("user.home"), ".config/metrolist")
@@ -54,10 +54,10 @@ index 215229f7f1fccf037b966b5248f4074a4cad16c4..39dceea089a7891ac7227f07b4cd64d0
 +    val imagesHidden = rememberImagesHidden()
      val canonicalUrl = remember(url) { canonicalArtworkUrl(url) }
      val artworkColorsEnabled = Settings.shared.materialYouEnabled && Settings.shared.dynamicTheme
-
+ 
 @@ -118,7 +137,7 @@ internal fun AsyncImage(
          }
-
+ 
      LaunchedEffect(canonicalUrl, extractColor, artworkColorsEnabled) {
 -        if (!extractColor || !artworkColorsEnabled) return@LaunchedEffect
 +        if (imagesHidden || !extractColor || !artworkColorsEnabled) return@LaunchedEffect
@@ -67,7 +67,7 @@ index 215229f7f1fccf037b966b5248f4074a4cad16c4..39dceea089a7891ac7227f07b4cd64d0
 @@ -138,6 +157,11 @@ internal fun AsyncImage(
          }
      }
-
+ 
 +    if (imagesHidden) {
 +        Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant, shape))
 +        return
@@ -88,9 +88,9 @@ index edb47b87c6cdaa656258617218c18e485c585739..cd37df3f3d03ba0a0d16f8552c700aae
  import coil3.request.ImageResult
  import coil3.request.SuccessResult
  import coil3.size.Dimension
-@@ -37,6 +38,18 @@ private const val MAX_REMOTE_ARTWORK_BYTES = 12L * 1024 * 1024
+@@ -37,5 +38,17 @@ private const val MAX_REMOTE_ARTWORK_BYTES = 12L * 1024 * 1024
  private const val MEMORY_CACHE_BYTES = 16L * 1024 * 1024
-
+ 
 +/** Stops every Coil request while the external Image Hider switch is enabled. */
 +private object ImageHidingInterceptor : Interceptor {
 +    override suspend fun intercept(chain: Interceptor.Chain): ImageResult {
@@ -105,7 +105,7 @@ index edb47b87c6cdaa656258617218c18e485c585739..cd37df3f3d03ba0a0d16f8552c700aae
 +
  object DesktopImageLoader {
      private var imageLoader: ImageLoader? = null
-
+ 
 @@ -57,6 +70,7 @@ object DesktopImageLoader {
              ImageLoader
                  .Builder(context)
@@ -158,11 +158,11 @@ index 569db6836ec2347ed2b8df4373748531cbb14ff4..20090bfbcfe6b00c758a124c2b22b923
  import androidx.compose.foundation.layout.Box
  import androidx.compose.foundation.layout.fillMaxSize
  import androidx.compose.foundation.layout.size
-@@ -35,6 +36,7 @@ import com.metrolist.shared.ui.icons.MetrolistIcons
+@@ -35,5 +36,6 @@ import com.metrolist.shared.ui.icons.MetrolistIcons
  import com.metrolist.shared.ui.player.LocalPlayerTrackArtwork
  import com.metrolist.shared.ui.player.ShareMiniPlayerArtwork
 +import com.metrolist.shared.utils.rememberImageHiderEnabled
-
+ 
  @Composable
  fun CrossfadeArtwork(
 @@ -46,6 +48,10 @@ fun CrossfadeArtwork(
@@ -187,7 +187,7 @@ index b3e68553283d11a66fe68d055e8ab3e1db846af8..973418b22bec1dce3738fbf2087cae3f
 +import com.metrolist.shared.utils.rememberImageHiderEnabled
  import kotlinx.coroutines.flow.collectLatest
  import kotlin.time.Duration.Companion.milliseconds
-
+ 
 @@ -71,6 +72,10 @@ fun LiquidBackground(
      isPlaying: Boolean = true,
      visible: Boolean = true,
@@ -210,7 +210,7 @@ index 54c9b4480c013db9fba850bcd45fe2bba94d04af..af1925a6af45fcf9499fe3164dcd3f9e
 +import com.metrolist.shared.utils.rememberImageHiderEnabled
  import com.metrolist.shared.ui.utils.toImageBitmap
  import kotlinx.coroutines.delay
-
+ 
 @@ -96,10 +97,11 @@ fun LyricsContrastScrim(
      exit = fadeOut(tween(500)),
  ) {
@@ -229,14 +229,14 @@ diff --git a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/player/PlayerA
 index 3b40df67e2e80e9a5b50a67467db8bda3179ed12..986f65d220890e8cb6d7a8ca673c00f09d2f1603 100644
 --- a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/player/PlayerArtworkBackground.kt
 +++ b/shared/src/commonMain/kotlin/com/metrolist/shared/ui/player/PlayerArtworkBackground.kt
-@@ -76,6 +76,7 @@ import coil3.compose.LocalPlatformContext
+@@ -76,5 +76,6 @@ import coil3.compose.LocalPlatformContext
  import coil3.request.ImageRequest
  import coil3.request.SuccessResult
  import coil3.size.Scale
 +import com.metrolist.shared.utils.rememberImageHiderEnabled
  import com.metrolist.shared.api.artwork.YouTubeCanvasClip
  import com.metrolist.shared.settings.PlayerBackgroundStyle
-@@ -803,6 +804,7 @@ private fun rememberFullscreenArtworkBitmap(
+@@ -803,7 +804,8 @@ private fun rememberFullscreenArtworkBitmap(
      thumbnailUrl: String,
      targetSize: IntSize,
  ): ImageBitmap? {
@@ -244,12 +244,12 @@ index 3b40df67e2e80e9a5b50a67467db8bda3179ed12..986f65d220890e8cb6d7a8ca673c00f0
      LocalPlayerTrackArtwork.current?.takeIf { it.url == thumbnailUrl }?.let { return it.bitmap }
      val context = LocalPlatformContext.current
      var artwork by remember { mutableStateOf<ImageBitmap?>(null) }
-
+ 
 diff --git a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/screens/ArtistPhotoViewer.kt b/shared/src/commonMain/kotlin/com/metrolist/shared/ui/screens/ArtistPhotoViewer.kt
 index f8c3ee0698a0fb4de46b0b10e42386b5c8d74e15..61cf42067eeeb58ffe48d8355e7152466a2eaac0 100644
 --- a/shared/src/commonMain/kotlin/com/metrolist/shared/ui/screens/ArtistPhotoViewer.kt
 +++ b/shared/src/commonMain/kotlin/com/metrolist/shared/ui/screens/ArtistPhotoViewer.kt
-@@ -104,6 +104,7 @@ import coil3.size.Precision
+@@ -104,5 +104,6 @@ import coil3.size.Precision
  import coil3.size.Size
  import com.metrolist.shared.api.lastfm.LastFmPhotoCache
 +import com.metrolist.shared.utils.rememberImageHiderEnabled
@@ -318,7 +318,7 @@ index f8c3ee0698a0fb4de46b0b10e42386b5c8d74e15..61cf42067eeeb58ffe48d8355e715246
 +        }
      }
  }
-
+ 
 diff --git a/shared/src/commonMain/kotlin/com/metrolist/shared/utils/ImageHiding.kt b/shared/src/commonMain/kotlin/com/metrolist/shared/utils/ImageHiding.kt
 new file mode 100644
 index 0000000000000000000000000000000000000000..a375f0b0b85f3bf9688b82876ca5ba3a162138b6
@@ -349,7 +349,7 @@ index 10f22eecb5404f46b9c881a82270d2e614eb5b53..e6adc4cf8c0b165e0acf51e041e01a19
 @@ -25,6 +28,21 @@ import coil3.request.crossfade
  import coil3.size.Scale
  import com.metrolist.shared.utils.rememberCachedArtworkPreview
-
+ 
 +private fun hideImagesFlagFile(): File {
 +    val appData = System.getenv("APPDATA")
 +    val root = if (!appData.isNullOrBlank()) File(appData, "Metrolist") else File(System.getProperty("user.home"), ".config/metrolist")
@@ -416,10 +416,11 @@ new file mode 100644
 index 0000000000000000000000000000000000000000..d1f48c4f72d910fb15d1dcd07cf43559b2b91da4
 --- /dev/null
 +++ b/shared/src/iosMain/kotlin/com/metrolist/shared/utils/ImageHiding.ios.kt
-@@ -0,0 +1,6 @@
+@@ -0,1 +1,7 @@
 +package com.metrolist.shared.utils
 +
 +import androidx.compose.runtime.Composable
 +
 +@Composable
 +actual fun rememberImageHiderEnabled(): Boolean = false
+ 
